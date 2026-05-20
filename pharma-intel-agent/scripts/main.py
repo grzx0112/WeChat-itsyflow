@@ -19,8 +19,15 @@ if sys.platform == "win32":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")
     os.environ.setdefault("PYTHONUTF8", "1")
 
+# 加载 .env 文件（从 scripts 目录的上一级查找）
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_env_path = os.path.join(_script_dir, "..", ".env")
+if os.path.exists(_env_path):
+    from dotenv import load_dotenv
+    load_dotenv(_env_path, override=False)
+
 # 将 scripts/ 目录加入 path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _script_dir)
 
 from fetch_fda import fetch_fda
 from fetch_pubmed import fetch_pubmed
@@ -165,7 +172,7 @@ def main():
     if total_raw == 0:
         print("未获取到任何数据，退出。")
         report = build_report(args.query, datetime.now().isoformat() + "Z", sources, args.days, 0, 0, [])
-        with open(os.path.join(args.out_dir, "report.json"), "w") as f:
+        with open(os.path.join(args.out_dir, "report.json"), "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
         return
 
@@ -200,14 +207,14 @@ def main():
 
     # 保存 JSON
     json_path = os.path.join(args.out_dir, "report.json")
-    with open(json_path, "w") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     print(f"\n[JSON] 已保存: {json_path}")
 
     # 保存 Markdown
     md_path = os.path.join(args.out_dir, "report.md")
     md_content = json_to_markdown(report)
-    with open(md_path, "w") as f:
+    with open(md_path, "w", encoding="utf-8") as f:
         f.write(md_content)
     print(f"[MD]   已保存: {md_path}")
 

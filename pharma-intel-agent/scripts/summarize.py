@@ -18,7 +18,7 @@ from typing import List, Dict, Optional
 def _get_api_key(llm: str = "openai") -> Optional[str]:
     """获取 API key，按 provider 优先级查找"""
     key_map = {
-        "zai": ["ZAI_API_KEY", "OPENAI_API_KEY"],
+        "zai": ["ZAI_API_KEY", "BIGMODEL_API_KEY", "Z_AI_API_KEY", "OPENAI_API_KEY"],
         "deepseek": ["DEEPSEEK_API_KEY", "OPENAI_API_KEY"],
         "openai": ["OPENAI_API_KEY"],
     }

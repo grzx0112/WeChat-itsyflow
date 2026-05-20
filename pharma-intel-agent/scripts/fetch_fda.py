@@ -11,7 +11,7 @@ if sys.platform == "win32":
 import requests
 import json
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from name_expand import expand_query
 
@@ -28,52 +28,68 @@ def normalize_date(date_str: str) -> str:
     return date_str[:10] if len(date_str) >= 10 else date_str
 
 
+def _search_field(base_url: str, search: str, limit: int) -> List[Dict]:
+    """通用 openFDA 搜索，返回原始 JSON results 或空列表"""
+    try:
+        resp = requests.get(base_url, params={"search": search, "limit": limit}, timeout=30)
+        resp.raise_for_status()
+        return resp.json().get("results", [])
+    except Exception:
+        return []
+
+
 def fetch_fda_drug_event(query: str, days: int = 7, limit: int = 25) -> List[Dict]:
-    """抓取 FDA 不良事件数据"""
+    """抓取 FDA 不良事件数据 — 分别搜 generic/brand 再合并"""
     base_url = "https://api.fda.gov/drug/event.json"
     since = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
     now_str = datetime.now().strftime("%Y%m%d")
-    search = f'patient.drug.medicinalproduct:"{query}"+receivedate:[{since} TO {now_str}]'
-    params = {"search": search, "limit": limit}
+    date_filter = f"+receivedate:[{since} TO {now_str}]"
+
+    # 分别用 medicinalproduct 搜索（该字段同时包含通用名和商品名）
+    search_strategies = [
+        f'patient.drug.medicinalproduct:"{query}"{date_filter}',
+    ]
+
     items = []
-    try:
-        resp = requests.get(base_url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        for r in data.get("results", []):
+    seen = set()
+    for search in search_strategies:
+        for r in _search_field(base_url, search, limit):
             drugs = r.get("patient", {}).get("drug", [])
             drug_name = drugs[0].get("medicinalproduct", query) if drugs else query
             reactions = [re.get("reactionmeddrapt", "") for re in r.get("patient", {}).get("reaction", [])[:3]]
-            items.append({
-                "title": f"FDA Adverse Event: {drug_name}",
-                "source": "FDA",
-                "source_url": f"https://api.fda.gov/drug/event.json?search=patient.drug.medicinalproduct:{query}",
-                "date": normalize_date(r.get("receivedate", "")),
-                "raw_summary": f"Reactions: {', '.join(filter(None, reactions)) or 'N/A'}",
-            })
-    except Exception as e:
-        print(f"[FDA Event] Error for '{query}': {e}")
+            title = f"FDA Adverse Event: {drug_name}"
+            if title not in seen:
+                seen.add(title)
+                items.append({
+                    "title": title,
+                    "source": "FDA",
+                    "source_url": f"https://api.fda.gov/drug/event.json?search=patient.drug.medicinalproduct:{query}",
+                    "date": normalize_date(r.get("receivedate", "")),
+                    "raw_summary": f"Reactions: {', '.join(filter(None, reactions)) or 'N/A'}",
+                })
     return items
 
 
-def fetch_fda_drugsfda(query: str, days: int = 7, limit: int = 25, use_generic: bool = False) -> List[Dict]:
-    """抓取 Drugs@FDA 审批数据"""
+def fetch_fda_drugsfda(query: str, days: int = 7, limit: int = 25) -> List[Dict]:
+    """抓取 Drugs@FDA 审批数据 — 分别搜 generic_name / brand_name 再合并"""
     base_url = "https://api.fda.gov/drug/drugsfda.json"
-    if use_generic:
-        search = f'products.brand_name:"{query}"+openfda.generic_name:"{query}"'
-    else:
-        search = f'products.brand_name:"{query}"'
-    params = {"search": search, "limit": limit}
+
+    search_strategies = [
+        f'openfda.generic_name:"{query}"',
+        f'products.brand_name:"{query}"',
+    ]
+
     items = []
-    try:
-        resp = requests.get(base_url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        for r in data.get("results", []):
+    seen_app_no = set()
+    for search in search_strategies:
+        for r in _search_field(base_url, search, limit):
+            app_no = r.get("application_number", "")
+            if app_no in seen_app_no:
+                continue
+            seen_app_no.add(app_no)
             products = r.get("products", [])
             brand = products[0].get("brand_name", query) if products else query
             app_type = r.get("application_type", "N/A")
-            app_no = r.get("application_number", "N/A")
             items.append({
                 "title": f"FDA Approval: {brand} ({app_type} {app_no})",
                 "source": "FDA",
@@ -81,36 +97,34 @@ def fetch_fda_drugsfda(query: str, days: int = 7, limit: int = 25, use_generic: 
                 "date": normalize_date(r.get("submission_status_date", "")),
                 "raw_summary": f"Application: {app_type} {app_no}",
             })
-    except Exception as e:
-        print(f"[Drugs@FDA] Error for '{query}': {e}")
     return items
 
 
-def fetch_fda_label(query: str, limit: int = 25, use_generic: bool = False) -> List[Dict]:
-    """抓取 FDA 药品标签数据"""
+def fetch_fda_label(query: str, limit: int = 25) -> List[Dict]:
+    """抓取 FDA 药品标签数据 — 分别搜 generic_name / brand_name 再合并"""
     base_url = "https://api.fda.gov/drug/label.json"
-    if use_generic:
-        search = f'openfda.generic_name:"{query}"'
-    else:
-        search = f'openfda.brand_name:"{query}"'
-    params = {"search": search, "limit": limit}
+
+    search_strategies = [
+        f'openfda.generic_name:"{query}"',
+        f'openfda.brand_name:"{query}"',
+    ]
+
     items = []
-    try:
-        resp = requests.get(base_url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        for r in data.get("results", []):
+    seen_brands = set()
+    for search in search_strategies:
+        for r in _search_field(base_url, search, limit):
             brand = ", ".join(r.get("openfda", {}).get("brand_name", [query]))
+            if brand in seen_brands:
+                continue
+            seen_brands.add(brand)
             indications = r.get("indications_and_usage", ["N/A"])[0][:200] if r.get("indications_and_usage") else "N/A"
             items.append({
                 "title": f"FDA Label Update: {brand}",
                 "source": "FDA",
-                "source_url": f"https://api.fda.gov/drug/label.json?search=openfda.brand_name:{query}",
+                "source_url": f"https://api.fda.gov/drug/label.json?search=openfda.generic_name:{query}",
                 "date": normalize_date(r.get("effective_time", "")),
                 "raw_summary": indications,
             })
-    except Exception as e:
-        print(f"[FDA Label] Error for '{query}': {e}")
     return items
 
 
@@ -122,20 +136,16 @@ def fetch_fda(query: str, days: int = 7, no_expand: bool = False) -> List[Dict]:
     if is_mapped:
         print(f"[FDA] 查询 '{query}' 展开为: {expanded}")
     else:
-        print(f"[FDA] 使用原始查询 '{query}'（未展开，将用 generic_name 回退）")
+        print(f"[FDA] 使用原始查询 '{query}'")
 
     items = []
     seen_titles = set()
 
     for drug_name in expanded:
-        use_generic = not is_mapped  # 映射展开的用 brand_name，未映射的用 generic_name 回退
-
         for fetch_fn in [fetch_fda_drug_event, fetch_fda_drugsfda, fetch_fda_label]:
             try:
                 if fetch_fn == fetch_fda_label:
-                    new_items = fetch_fn(drug_name, use_generic=use_generic)
-                elif fetch_fn == fetch_fda_drugsfda:
-                    new_items = fetch_fn(drug_name, days, use_generic=use_generic)
+                    new_items = fetch_fn(drug_name)
                 else:
                     new_items = fetch_fn(drug_name, days)
             except Exception as e:
@@ -143,7 +153,6 @@ def fetch_fda(query: str, days: int = 7, no_expand: bool = False) -> List[Dict]:
                 continue
 
             for item in new_items:
-                # 去重（按标题）
                 if item["title"] not in seen_titles:
                     seen_titles.add(item["title"])
                     items.append(item)
