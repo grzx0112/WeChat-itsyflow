@@ -1,0 +1,23 @@
+{
+  "skill_name": "pharma-deep-research",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我做一个 Tirzepatide（替尔泊肽）的深度研究，关注它作为肥胖症治疗的竞争格局，我想了解它和 semaglutide 的头对头比较以及未来市场格局演变",
+      "expected_output": "应产出完整的横纵分析法研报，包含：纵向时间线（从 GIP/GLP 双靶点发现到 SURMOUNT 系列试验）、横向对比（tirzepatide vs semaglutide 的疗效/安全性/标签差异）、竞品识别（同机制+同适应症）、未来三剧本、BD/商业视角",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我对 ALK 抑制剂的适应症竞争格局感兴趣，想看看非小细胞肺癌中 ALK 靶点药物的整体竞争态势，包括各代药物对比",
+      "expected_output": "应自动识别为 indication 类型研究，纵向追踪 ALK+NSCLC 治疗 SoC 演变（crizotinib → alectinib → lorlatinib），横向对比各代 ALK 抑制剂（疗效 PFS、脑转移控制、安全性），包含专利悬崖时间线和未来三剧本",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "做一个 ADC（抗体偶联药物）技术平台的深度分析，我想了解当前 ADC 技术的竞争格局和未来方向",
+      "expected_output": "应自动识别为 platform 类型研究，纵向追踪 ADC 技术代际（第一代 Mylotarg 失败到 Enhertu 成功），横向对比主要 ADC 平台（linker/payload/DAR 策略差异），包含代表性药物、主要企业管线布局、技术瓶颈",
+      "files": []
+    }
+  ]
+}
