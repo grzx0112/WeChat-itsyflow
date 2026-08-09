@@ -1,0 +1,14 @@
+{"studies": [
+  {"protocolSection": {
+    "statusModule": {"overallStatus": "RECRUITING"},
+    "designModule": {"phases": ["PHASE3"]},
+    "conditionsModule": {"conditions": ["Diabetes Mellitus, Type 2"]},
+    "outcomesModule": {"primaryOutcomes": [{"measure": "HbA1c change from baseline"}]}
+  }},
+  {"protocolSection": {
+    "statusModule": {"overallStatus": "COMPLETED"},
+    "designModule": {"phases": ["PHASE4"]},
+    "conditionsModule": {"conditions": ["Obesity"]},
+    "outcomesModule": {"primaryOutcomes": [{"measure": "Body weight change"}]}
+  }}
+], "totalCount": 2}

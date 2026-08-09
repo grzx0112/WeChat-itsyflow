@@ -1,0 +1,5 @@
+{"meta": {"results": {"total": 3}}, "results": [
+  {"term": "Nausea", "count": 1200},
+  {"term": "Vomiting", "count": 800},
+  {"term": "Diarrhoea", "count": 500}
+]}
